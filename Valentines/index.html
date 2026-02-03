@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Glowing Ethereal Garden</title>
+    <style>
+        body { margin: 0; background: #010103; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: 'Georgia', serif; }
+        canvas { display: block; }
+        
+        /* Play Button Styling */
+        #playButton {
+            position: absolute;
+            z-index: 10;
+            padding: 15px 30px;
+            font-size: 18px;
+            background: rgba(255, 51, 102, 0.2);
+            color: white;
+            border: 2px solid #ff3366;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: 0.5s;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 0 20px rgba(255, 51, 102, 0.4);
+        }
+        #playButton:hover {
+            background: #ff3366;
+            box-shadow: 0 0 40px #ff3366;
+        }
+    </style>
+</head>
+<body>
+
+<button id="playButton">Click to Start Experience ✨</button>
+
+<audio id="bgMusic" loop>
+    <source src="IKAWLANG.mp3" type="audio/mpeg">
+</audio>
+
+<canvas id="garden"></canvas>
+
+<script>
+    const canvas = document.getElementById('garden');
+    const ctx = canvas.getContext('2d');
+    const music = document.getElementById('bgMusic');
+    const playBtn = document.getElementById('playButton');
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // --- IKAW LANG LYRICS DATA ---
+    const lyricsData = [
+        { time: 07, text: "Oh, kay gandang pagmasdan" },
+        { time: 12, text: "Ang iyong mga mata" },
+        { time: 16, text: "Kumikinang-kinang" },
+        { time: 20, text: "Diko maintindhan..." },
+        { time: 25, text: "Ang iyong mga tingin" },
+        { time: 35, text: "Hindi ko mapigil ang sarili ko" },
+        { time: 53, text: "Na tumitig sa 'yo" },
+        { time: 60, text: "Ikaw lang ang tanging nais ko" },
+        { time: 67, text: "Sinta..." }
+    ];
+
+    let currentLyric = "";
+    let lyricFade = 0;
+
+    // AUDIO TRIGGER
+    playBtn.addEventListener('click', () => {
+        music.play();
+        playBtn.style.opacity = '0';
+        setTimeout(() => playBtn.remove(), 500);
+        init(); 
+        animate();
+    });
+
+    const config = { 
+        growSpeed: 1.2, 
+        bloomSpeed: 0.006, 
+        textFade: 0.010,
+        windStrength: 0.001,
+    };
+
+    let textOpacity = 0;
+
+    // --- LYRIC HANDLER ---
+    function handleLyrics() {
+        const time = music.currentTime;
+        // Find the lyric that matches the current time
+        const activeLyric = lyricsData.findLast(l => time >= l.time);
+        
+        if (activeLyric) {
+            if (currentLyric !== activeLyric.text) {
+                currentLyric = activeLyric.text;
+                lyricFade = 0; // Reset fade for new line
+            }
+            if (lyricFade < 1) lyricFade += 0.02; // Fade in speed
+        }
+
+        if (currentLyric) {
+            ctx.save();
+            ctx.font = "italic 22px 'Georgia', serif";
+            ctx.textAlign = "center";
+            ctx.fillStyle = `rgba(255, 255, 255, ${lyricFade})`;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = "rgba(255, 255, 255, 0.5)";
+            // Positioned above the flowers but below the final message
+            ctx.fillText(currentLyric, canvas.width / 2, canvas.height - 100);
+            ctx.restore();
+        }
+    }
+
+    class Butterfly {
+        constructor() { this.reset(); }
+        reset() {
+            this.x = Math.random() * canvas.width;
+            this.y = Math.random() * canvas.height;
+            this.vx = (Math.random() - 0.5) * 1.5;
+            this.vy = (Math.random() - 0.5) * 1.5;
+            this.size = Math.random() * 6 + 6;
+            this.hue = Math.random() * 360;
+            this.color = `hsl(${this.hue}, 80%, 70%)`;
+            this.darkColor = `hsl(${this.hue}, 90%, 20%)`;
+            this.flap = Math.random() * Math.PI;
+            this.flapSpeed = 0.1 + Math.random() * 0.1;
+            this.targetFlower = null;
+        }
+        update() {
+            if (flowers.length > 0 && Math.random() < 0.01 && !this.targetFlower) {
+                let f = flowers[Math.floor(Math.random() * flowers.length)];
+                if (f.bloom >= 1) this.targetFlower = f;
+            }
+            if (this.targetFlower) {
+                const tx = this.targetFlower.x + this.targetFlower.curve;
+                const ty = canvas.height - this.targetFlower.h - 15;
+                this.x += (tx - this.x) * 0.03;
+                this.y += (ty - this.y) * 0.03;
+                this.flap += 0.08; 
+                if (Math.random() < 0.005) this.targetFlower = null;
+            } else {
+                this.x += this.vx + Math.sin(Date.now() * 0.002) * 0.8;
+                this.y += this.vy + Math.cos(Date.now() * 0.002) * 0.8;
+                this.flap += this.flapSpeed;
+            }
+            if (this.x < -50 || this.x > canvas.width + 50 || this.y < -50 || this.y > canvas.height + 50) this.reset();
+        }
+        draw() {
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            if (!this.targetFlower) ctx.rotate(Math.atan2(this.vy, this.vx) + Math.PI/2);
+            const wingWidth = Math.sin(this.flap) * this.size * 3.5;
+            this.drawWing(wingWidth, 1, 1.2);  
+            this.drawWing(wingWidth, -1, 1.2); 
+            this.drawWing(wingWidth * 0.8, 1, 0.5, true);  
+            this.drawWing(wingWidth * 0.8, -1, 0.5, true); 
+            ctx.shadowBlur = 15; ctx.shadowColor = this.color;
+            ctx.fillStyle = "#111"; ctx.beginPath();
+            ctx.ellipse(0, 0, this.size/4, this.size, 0, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = "#fff"; ctx.lineWidth = 0.5; ctx.beginPath();
+            ctx.moveTo(-1, -this.size); ctx.quadraticCurveTo(-5, -this.size-5, -8, -this.size-2);
+            ctx.moveTo(1, -this.size); ctx.quadraticCurveTo(5, -this.size-5, 8, -this.size-2);
+            ctx.stroke(); ctx.restore();
+        }
+        drawWing(w, side, vertScale, isBottom = false) {
+            ctx.save(); ctx.scale(side, 1);
+            const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, this.size * 3);
+            grad.addColorStop(0, this.color); grad.addColorStop(1, this.darkColor);
+            ctx.fillStyle = grad; ctx.beginPath();
+            if(!isBottom) {
+                ctx.moveTo(0, 0); ctx.bezierCurveTo(w, -this.size * 2, w * 1.5, this.size, 0, this.size * 0.5);
+            } else {
+                ctx.moveTo(0, 0); ctx.bezierCurveTo(w, this.size, w, this.size * 3, 0, this.size * 1.5);
+            }
+            ctx.fill(); ctx.restore();
+        }
+    }
+
+    class Star {
+        constructor() {
+            this.x = Math.random() * canvas.width;
+            this.y = Math.random() * canvas.height;
+            this.size = Math.random() * 1.5;
+            this.blink = Math.random() * Math.PI;
+        }
+        draw() {
+            this.blink += 0.02;
+            ctx.fillStyle = `rgba(255, 255, 255, ${0.1 + Math.abs(Math.sin(this.blink)) * 0.5})`;
+            ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill();
+        }
+    }
+
+    class Firefly {
+        constructor() { this.reset(); }
+        reset() {
+            this.x = Math.random() * canvas.width;
+            this.y = Math.random() * canvas.height;
+            this.vx = (Math.random() - 0.5) * 0.6;
+            this.vy = (Math.random() - 0.5) * 0.6;
+            this.life = Math.random() * 200 + 100;
+        }
+        update() { this.x += this.vx; this.y += this.vy; this.life--; if (this.life < 0) this.reset(); }
+        draw() {
+            ctx.beginPath(); ctx.arc(this.x, this.y, 1.5, 0, Math.PI * 2);
+            ctx.fillStyle = "rgba(200, 255, 100, 0.7)"; ctx.shadowBlur = 12; ctx.shadowColor = "yellow";
+            ctx.fill(); ctx.shadowBlur = 0;
+        }
+    }
+
+    class Grass {
+        constructor(x) {
+            this.x = x; this.maxH = Math.random() * 100 + 100; this.currH = 0;
+            this.width = Math.random() * 10 + 5; this.offset = Math.random() * 100;
+        }
+        draw() {
+            if (this.currH < this.maxH) this.currH += 0.4;
+            let angle = Math.sin(Date.now() * config.windStrength + this.offset) * 0.3;
+            ctx.save(); ctx.translate(this.x, canvas.height);
+            const grad = ctx.createLinearGradient(0, 0, 0, -this.currH);
+            grad.addColorStop(0, '#0a1a00'); grad.addColorStop(1, '#4d9900');
+            ctx.beginPath(); ctx.fillStyle = grad; ctx.moveTo(-this.width/2, 0);
+            ctx.quadraticCurveTo(0, -this.currH/2, this.currH * angle, -this.currH);
+            ctx.quadraticCurveTo(0, -this.currH/2, this.width/2, 0); ctx.fill(); ctx.restore();
+        }
+    }
+
+    class Heart {
+        constructor() { this.reset(); }
+        reset() {
+            this.x = Math.random() * canvas.width; this.y = canvas.height + 20;
+            this.vx = (Math.random() - 0.5) * 1.5; this.speedY = Math.random() * 0.7 + 0.3;
+            this.size = Math.random() * 10 + 10; this.opacity = Math.random() * 0.5 + 0.2; this.pulse = 0;
+        }
+        update() {
+            this.y -= this.speedY; this.x += this.vx; this.pulse += 0.05;
+            if (this.y < -50 || this.x < -50 || this.x > canvas.width + 50) this.reset();
+        }
+        draw() {
+            ctx.save(); ctx.translate(this.x, this.y);
+            const scale = 1 + Math.sin(this.pulse) * 0.2; ctx.scale(scale, scale);
+            ctx.globalAlpha = this.opacity; ctx.shadowBlur = 10; ctx.shadowColor = "#ff3366";
+            ctx.fillStyle = "#ff3366"; ctx.beginPath();
+            const d = this.size; ctx.moveTo(0, 0);
+            ctx.bezierCurveTo(-d/2, -d/2, -d, d/3, 0, d); ctx.bezierCurveTo(d, d/3, d/2, -d/2, 0, 0);
+            ctx.fill(); ctx.restore();
+        }
+    }
+
+    class Flower {
+        constructor(x, targetH, curve, delay, color) {
+            this.x = x; this.targetH = targetH; this.h = 0;
+            this.curve = curve; this.delay = delay; this.color = color;
+            this.bloom = 0; this.timer = 0; this.pulse = Math.random() * 20;
+        }
+        update() {
+            if (this.timer < this.delay) { this.timer++; return; }
+            if (this.h < this.targetH) this.h += config.growSpeed;
+            else if (this.bloom < 1) this.bloom += config.bloomSpeed;
+            this.pulse += 0.03;
+        }
+        draw() {
+            if (this.timer < this.delay) return;
+            const progress = this.h / this.targetH;
+            const tx = this.x + (this.curve * progress);
+            const ty = canvas.height - this.h;
+            ctx.beginPath(); ctx.strokeStyle = "#1a3310"; ctx.lineWidth = 20 * (1 - progress * 0.4);
+            ctx.moveTo(this.x, canvas.height); ctx.quadraticCurveTo(this.x, canvas.height - this.h/2, tx, ty); ctx.stroke();
+            if (progress > 0.4) this.drawLeaf(this.x + (this.curve * 0.3), canvas.height - (this.h * 0.3), -0.8);
+            if (progress > 0.7) this.drawLeaf(this.x + (this.curve * 0.6), canvas.height - (this.h * 0.6), 0.8);
+            if (this.bloom > 0) {
+                ctx.save(); ctx.translate(tx, ty);
+                const s = this.bloom + (this.bloom >= 1 ? Math.sin(this.pulse) * 0.05 : 0) * 2;
+                this.drawPetalLayer(s, 7, 0.8, -0.2, 0.8); 
+                ctx.beginPath(); ctx.arc(0, 0, 8 * s, 0, Math.PI * 2);
+                ctx.fillStyle = "#fff"; ctx.shadowBlur = 30 * s; ctx.shadowColor = this.color; ctx.fill();
+                this.drawPetalLayer(s, 7, 0.9, 0.2, 0.9); ctx.restore();
+            }
+        }
+        drawLeaf(lx, ly, side) {
+            ctx.save(); ctx.translate(lx, ly); ctx.rotate(side);
+            const lGrad = ctx.createLinearGradient(0,0,15,0);
+            lGrad.addColorStop(0, "#0a1a05"); lGrad.addColorStop(1, "#2d5a1c");
+            ctx.fillStyle = lGrad; ctx.beginPath(); ctx.ellipse(0, 0, 20, 10, 0.3, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+        }
+        drawPetalLayer(s, count, scale, rotOffset, alpha) {
+            ctx.globalAlpha = alpha;
+            for (let i = 0; i < count; i++) {
+                ctx.save(); ctx.rotate((Math.PI * 2 / count) * i + rotOffset);
+                const pGrad = ctx.createLinearGradient(0, 0, 0, -60 * s * scale);
+                pGrad.addColorStop(0, this.color); pGrad.addColorStop(1, 'rgba(255, 255, 255, 0.8)'); 
+                ctx.beginPath(); ctx.fillStyle = pGrad; ctx.shadowBlur = 20 * s; ctx.shadowColor = this.color;
+                ctx.moveTo(0, 0); ctx.bezierCurveTo(-22*s*scale, -20*s*scale, -18*s*scale, -58*s*scale, 0, -65*s*scale);
+                ctx.bezierCurveTo(18*s*scale, -58*s*scale, 22*s*scale, -20*s*scale, 0, 0);
+                ctx.fill(); ctx.restore();
+            }
+            ctx.globalAlpha = 1;
+        }
+    }
+
+    let stars = [], fires = [], grass = [], flowers = [], hearts = [], butterflies = [];
+
+    function init() {
+        stars = []; fires = []; grass = []; flowers = []; hearts = []; butterflies = [];
+        for (let i = 0; i < 300; i++) stars.push(new Star());
+        for (let i = 0; i < 50; i++) fires.push(new Firefly());
+        for (let i = 0; i < 180; i++) grass.push(new Grass(Math.random() * canvas.width));
+        for (let i = 0; i < 50; i++) hearts.push(new Heart());
+        for (let i = 0; i < 8; i++) butterflies.push(new Butterfly());
+        const cx = canvas.width / 2;
+        flowers.push(new Flower(cx - 50, 270, -20, 100, "#9c27b0")); 
+        flowers.push(new Flower(cx, 400, 0, 0, "#ff0000")); 
+        flowers.push(new Flower(cx + 50, 300, 50, 50, "#ff4081"));
+    }
+
+    function animate() {
+        ctx.fillStyle = "#010103";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        stars.forEach(s => s.draw());
+        grass.forEach(g => g.draw());
+        hearts.forEach(h => { h.update(); h.draw(); });
+        fires.forEach(f => { f.update(); f.draw(); });
+        flowers.forEach(f => { f.update(); f.draw(); });
+        butterflies.forEach(b => { b.update(); b.draw(); });
+
+        // DRAW LYRICS
+        handleLyrics();
+
+        if (flowers.every(f => f.bloom >= 0.95)) {
+            if (textOpacity < 1) textOpacity += config.textFade;
+            ctx.save();
+            ctx.font = "italic 35px 'Georgia', serif";
+            ctx.textAlign = "center";
+            ctx.fillStyle = `rgba(255, 255, 255, ${textOpacity})`;
+            ctx.shadowBlur = 30; ctx.shadowColor = "#ff0000";
+            ctx.fillText("Happy Valentine's Day", canvas.width / 2, canvas.height / 2 - 230);
+            ctx.fillText("iloveyouuuuu<3", canvas.width / 2, canvas.height / 2 - 190);
+            ctx.restore();
+        }
+        requestAnimationFrame(animate);
+    }
+
+    window.addEventListener('resize', () => { 
+        canvas.width = window.innerWidth; 
+        canvas.height = window.innerHeight; 
+        init(); 
+    });
+</script>
+</body>
+</html>
